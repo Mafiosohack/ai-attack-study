@@ -1,0 +1,31 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# --- Virtual environment (recreate from requirements.txt) ---
+.venv/
+venv/
+env/
+
+# --- Model weights / HuggingFace cache (downloaded separately, large, licensed) ---
+*.safetensors
+*.bin
+*.gguf
+models/
+.cache/
+hf_cache/
+
+# --- Local runtime data: NOT for publication ---
+# Saved chat transcripts may contain personal/experimental conversation content.
+chats/
+# Runtime logs.
+logs/
+*.log
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
