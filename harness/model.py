@@ -66,6 +66,39 @@ EXISTENCE = DecodeConfig(do_sample=False)                 # near-deterministic y
 RELIABILITY = DecodeConfig(do_sample=True, temperature=0.7)  # ASR as a distribution
 
 
+def build_single_image_messages(system_prompt: str, image: object,
+                                user_text: str) -> list[dict]:
+    """The System 1 message shape: system turn + a user turn of [image, text].
+
+    Kept as a free function so the exact structure is unit-testable without a GPU
+    and can't drift — System 1 vs System 2 comparability depends on this being
+    the identical structure it always was."""
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": [
+            {"type": "image", "image": image},
+            {"type": "text", "text": user_text},
+        ]},
+    ]
+
+
+def build_context_messages(system_prompt: str, context_blocks: list[dict],
+                           user_text: str) -> list[dict]:
+    """The System 2 message shape: system turn, then a user turn holding the
+    retrieved context blocks (mixed text/image, in retrieval order) followed by
+    the user's benign question.
+
+    The retrieved blocks ride in the SAME user turn as the question — modelling a
+    naive RAG app that pastes retrieved context straight in front of the query,
+    with no trust boundary between them. That missing boundary is exactly what the
+    phase-3 defenses add back."""
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": [*context_blocks,
+                                      {"type": "text", "text": user_text}]},
+    ]
+
+
 class VictimModel:
     """Loads the quantized VLM once and runs image+text inference.
 
@@ -113,17 +146,22 @@ class VictimModel:
                  decode: DecodeConfig) -> str:
         """Run one system+image+text turn and return the model's decoded reply.
 
-        This is the single choke point every attack passes through, so the
-        prompt structure (system / image / user) is identical across all
-        systems and only the *content* varies per attack.
+        System 1's entry point, unchanged in behaviour: it just builds the
+        single-image message shape and hands it to the shared choke point below.
         """
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": [
-                {"type": "image", "image": image},
-                {"type": "text", "text": user_text},
-            ]},
-        ]
+        messages = build_single_image_messages(system_prompt, image, user_text)
+        return self.generate_messages(messages, decode)
+
+    def generate_messages(self, messages: list[dict], decode: DecodeConfig) -> str:
+        """The single tokenize -> generate -> decode choke point for BOTH systems.
+
+        Every attack in the series passes through here, so decoding behaviour is
+        byte-for-byte identical whether the message holds one crafted image
+        (System 1) or a retrieved mixed-modality context (System 2) — only the
+        message *content* varies. process_vision_info collects however many images
+        the message contains, so a multi-image RAG context works with no special
+        casing.
+        """
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = process_vision_info(messages)
