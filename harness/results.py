@@ -24,6 +24,7 @@ class AttackResult:
     successes: int
     outputs: list[str] = field(default_factory=list)
     victim_config: dict = field(default_factory=dict)
+    metrics: dict = field(default_factory=dict)  # secondary, attack-defined
     timestamp: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat())
 

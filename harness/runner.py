@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 from harness.pipeline import VictimPipeline
 from harness.results import AttackResult
@@ -34,6 +34,9 @@ class Attack:
     payload: object
     succeeded: Callable[[str], bool]
     objective: str = ""  # "exfiltration" | "jailbreak" | ... (for the report)
+    # Optional secondary measurements over all N outputs (e.g. per-field
+    # falsification counts), saved beside ASR. Never affects `successes`.
+    metrics: Optional[Callable[[list[str]], dict]] = None
 
 
 class AttackRunner:
@@ -76,6 +79,7 @@ class AttackRunner:
             successes=successes,
             outputs=outputs,
             victim_config=pipeline.describe_config(),
+            metrics=attack.metrics(outputs) if attack.metrics else {},
         )
         saved = result.save(self.results_dir)
         logger.info("%s: ASR %.0f%% (%d/%d) -> %s",

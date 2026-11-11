@@ -20,6 +20,7 @@ from harness.runner import Attack
 from systems.system2_indirect.hiring_assistant import HiringAssistantPipeline
 from attacks.hiring import (
     benign_candidate_page, build_cv_image, make_decision_flip_oracle, BENIGN_CV,
+    schema_field_metrics,
     hiring_canary_text_attack, hiring_decision_text_attack, hiring_falsify_text_attack,
     hiring_canary_image_attack, hiring_decision_image_attack, hiring_falsify_image_attack,
 )
@@ -40,6 +41,7 @@ def _benign_control(channel: str) -> Attack:
                              index_text=BENIGN_CV, source="corpus")
     return Attack(name=f"s2_baseline_clean_{channel}", payload=payload,
                   succeeded=make_decision_flip_oracle(),
+                  metrics=schema_field_metrics,
                   objective="control:clean_baseline")
 
 
@@ -64,14 +66,22 @@ def build_attacks() -> list[Attack]:
 
 
 def run_matrix(model, embedder, decode, n_trials: int,
-               defense: str = "off", results_dir: str = "results") -> list:
+               defense: str = "off", results_dir: str = "results",
+               skip: frozenset[str] = frozenset()) -> list:
     """Measure every cell at one (defense, decode) and return the AttackResults.
     One pipeline is reused across cells — only the payload varies, which is what
-    keeps the ASRs on one comparable axis (brief §4)."""
+    keeps the ASRs on one comparable axis (brief §4). `skip` names cells already
+    measured at this (defense, decode) so a resumed sweep doesn't redo them."""
+    unknown = skip - {a.name for a in build_attacks()}
+    if unknown:
+        raise ValueError(f"unknown cells in skip: {sorted(unknown)}")
     pipe = HiringAssistantPipeline(model, embedder, defense=defense, decode=decode)
     runner = AttackRunner(results_dir=results_dir)
     results = []
     for attack in build_attacks():
+        if attack.name in skip:
+            logger.info("--- %s skipped (already measured)", attack.name)
+            continue
         logger.info("=== %s (defense=%s, N=%d) ===", attack.name, defense, n_trials)
         results.append(runner.measure(pipe, attack, n_trials))
     return results
@@ -85,4 +95,9 @@ def print_summary(results: list, title: str) -> None:
         rank = r.victim_config.get("candidate_retrieval_rank")
         print(f"  {r.attack_name:<34} ASR {r.asr * 100:5.0f}%  "
               f"({r.successes}/{r.n_trials})  cand_rank={rank}")
+        if r.metrics:
+            m = r.metrics
+            print(f"      schema parsed {m['n_parsed']}/{m['n']}  falsified: "
+                  f"years {m['falsified_years_exp']}  python {m['falsified_has_python']}  "
+                  f"degree {m['falsified_has_degree']}  all3 {m['falsified_all_three']}")
     print("=" * 72)

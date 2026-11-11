@@ -26,6 +26,9 @@ from PIL import Image
 
 from harness.model import DecodeConfig, EXISTENCE, build_context_messages
 from systems.system2_indirect.retrieval import CorpusItem, Retriever
+from systems.system2_indirect.schema import (
+    SCHEMA_INSTRUCTION_TEMPLATE, parse_schema, render_output,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +75,10 @@ DISTRACTORS: list[CorpusItem] = [
 ]
 
 # --- Defenses (named, like System 1) ---------------------------------------
-# Phase-1 ships "off" only; "spotlight" and "schema_extract" (authority removal)
-# are the Phase-3 hardening and are added when that phase starts.
+# "off" = the naive model-decides baseline. "schema_extract" = Phase-3 authority
+# removal: SAME system prompt (one variable), but the user turn asks only for the
+# fixed fact schema and plain Python computes the verdict (see schema.py).
+# Spotlighting untrusted retrieved text is a separate, later layer.
 #
 # "off" is the genuinely NAIVE baseline: a generic, trusting system role with NO
 # rubric and NO security framing. The task and its (soft) requirements live in the
@@ -89,7 +94,10 @@ SYSTEM_PROMPT_OFF = (
 
 DEFENSES: dict[str, str] = {
     "off": SYSTEM_PROMPT_OFF,
+    "schema_extract": SYSTEM_PROMPT_OFF,
 }
+
+SCHEMA_INSTRUCTION = SCHEMA_INSTRUCTION_TEMPLATE.format(name=CANDIDATE_NAME)
 
 
 def _context_block(item: CorpusItem) -> dict:
@@ -173,12 +181,17 @@ class HiringAssistantPipeline:
         self._retrieved_ids = [it.id for it in retrieved]
 
         context_blocks = [_context_block(it) for it in retrieved]
+        schema_mode = self.defense == "schema_extract"
         messages = build_context_messages(
             system_prompt=self.system_prompt,
             context_blocks=context_blocks,
-            user_text=USER_INSTRUCTION,
+            user_text=SCHEMA_INSTRUCTION if schema_mode else USER_INSTRUCTION,
         )
-        return self.model.generate_messages(messages, self.decode)
+        raw = self.model.generate_messages(messages, self.decode)
+        if not schema_mode:
+            return raw
+        # Authority removal: the model's text never IS the verdict; Python's is.
+        return render_output(raw, parse_schema(raw))
 
     def describe_config(self) -> dict:
         """Provenance: model config + the one-variable defense/decode state PLUS
