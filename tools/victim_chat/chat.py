@@ -8,8 +8,8 @@ attacks run against, but it keeps multi-turn history and streams tokens, which
 the harness's single-turn choke point deliberately does not.
 
 Usage (from the project root, venv python):
-    ./.venv/Scripts/python.exe chat.py
-    ./.venv/Scripts/python.exe chat.py --image test_image.png
+    ./.venv/Scripts/python.exe tools/victim_chat/chat.py
+    ./.venv/Scripts/python.exe tools/victim_chat/chat.py --image tools/sample_images/test_image.png
 
 In-chat commands:
     /image <path>   attach an image to your NEXT message
@@ -31,7 +31,9 @@ from PIL import Image
 from transformers import TextIteratorStreamer
 from qwen_vl_utils import process_vision_info
 
-from harness.model import VictimModel
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root
+
+from harness.model import VictimModel  # noqa: E402
 
 DEFAULT_SYSTEM = "You are a helpful assistant."
 

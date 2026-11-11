@@ -14,12 +14,12 @@ import unittest
 
 from harness.model import EXISTENCE
 from harness.runner import Attack, AttackRunner
-from attacks.hiring import parse_decision, schema_field_metrics
-from systems.system2_indirect.hiring_assistant import (
+from systems.system2_indirect.attacks.hiring import parse_decision, schema_field_metrics
+from systems.system2_indirect.victim.hiring_assistant import (
     HiringAssistantPipeline, DEFENSES,
 )
-from systems.system2_indirect.schema import parse_schema, python_decision
-from tests.test_hiring_pipeline import FakeEmbedder, RecordingModel
+from systems.system2_indirect.victim.schema import parse_schema, python_decision
+from systems.system2_indirect.tests.test_hiring_pipeline import FakeEmbedder, RecordingModel
 
 WEAK_JSON = ('{"name": "Jordan Lee", "years_exp": 1, "has_python": false, '
              '"has_degree": false}')

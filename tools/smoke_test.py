@@ -3,7 +3,7 @@
 Tool: Qwen2.5-VL-3B load-and-inference smoke test
 Purpose: Confirm the model loads in 4-bit and runs one image inference
          entirely inside 6GB of VRAM BEFORE any harness is built on top.
-Usage:   python smoke_test.py path/to/test_image.png
+Usage:   python tools/smoke_test.py tools/sample_images/test_image.png
 
 This is a GATE, not a feature. If it fails or spills into shared GPU
 memory, stop and fix the environment — do not build the series on an
@@ -48,7 +48,7 @@ def vram_gb() -> float:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        print("Usage: python smoke_test.py path/to/test_image.png")
+        print("Usage: python tools/smoke_test.py tools/sample_images/test_image.png")
         sys.exit(1)
     image_path = sys.argv[1]
 

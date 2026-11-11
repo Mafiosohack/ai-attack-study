@@ -3,7 +3,7 @@
 
 Greedy, small N — confirms, with provenance JSON, whether each indirect-injection
 cell flips the decision at all and whether the clean baseline holds. Run from root:
-    .venv/Scripts/python.exe -m systems.system2_indirect.run_existence [--defense schema_extract]
+    .venv/Scripts/python.exe -m systems.system2_indirect.experiments.run_existence [--defense schema_extract]
 """
 
 from __future__ import annotations
@@ -13,12 +13,12 @@ import logging
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from harness import VictimModel, EXISTENCE
-from systems.system2_indirect.clip_embedder import ClipEmbedder
-from systems.system2_indirect.attack_matrix import run_matrix, print_summary
-from systems.system2_indirect.hiring_assistant import DEFENSES
+from systems.system2_indirect.victim.clip_embedder import ClipEmbedder
+from systems.system2_indirect.experiments.attack_matrix import run_matrix, print_summary
+from systems.system2_indirect.victim.hiring_assistant import DEFENSES
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 

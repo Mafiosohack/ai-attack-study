@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AttackResult — the serializable outcome of one attack measured over N trials.
 
-The results/ directory IS the provenance record: every claim in the eventual
+Each system's results/ directory IS the provenance record: every claim in the eventual
 report must trace to a JSON file written here. That is why victim_config travels
 inside each result — a number with no config attached is not evidence.
 """
@@ -34,7 +34,7 @@ class AttackResult:
         return self.successes / self.n_trials if self.n_trials else 0.0
 
     def save(self, results_dir: str | Path) -> Path:
-        """Persist as JSON under results/. Filename embeds attack name + UTC
+        """Persist as JSON under results_dir (each system's results/). Filename embeds attack name + UTC
         timestamp so runs never overwrite each other and stay sortable."""
         results_dir = Path(results_dir)
         results_dir.mkdir(parents=True, exist_ok=True)

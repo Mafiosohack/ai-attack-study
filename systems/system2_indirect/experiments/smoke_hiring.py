@@ -8,7 +8,7 @@ three things that must hold before any ASR run is meaningful:
   (b) the CLEAN baseline REJECTs the underqualified candidate  <-- the control,
   (c) a blunt text poison flips the verdict to SHORTLIST.
 
-Run from the repo root:  ./.venv/Scripts/python.exe -m systems.system2_indirect.smoke_hiring
+Run from the repo root:  ./.venv/Scripts/python.exe -m systems.system2_indirect.experiments.smoke_hiring
 
 Greedy/existence decode so the result is near-deterministic. This prints outcomes
 for a human to read; it does not write result JSON (that's the run scripts' job).
@@ -19,9 +19,9 @@ from __future__ import annotations
 import logging
 
 from harness.model import VictimModel, EXISTENCE
-from systems.system2_indirect.clip_embedder import ClipEmbedder
-from systems.system2_indirect.hiring_assistant import HiringAssistantPipeline
-from attacks.hiring import (
+from systems.system2_indirect.victim.clip_embedder import ClipEmbedder
+from systems.system2_indirect.victim.hiring_assistant import HiringAssistantPipeline
+from systems.system2_indirect.attacks.hiring import (
     benign_candidate_page, build_cv_text, DECISION_INJECTION, CANARY_INJECTION,
     parse_decision, make_canary_oracle,
 )

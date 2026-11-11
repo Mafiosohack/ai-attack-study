@@ -14,7 +14,7 @@ ever inserted as text into a Text widget, never interpreted as markup.
 
 Conversations persist to chats/ so previous chats survive a restart.
 
-Run:  .venv/Scripts/python.exe app.py       (or double-click Victim Chat.cmd)
+Run:  .venv/Scripts/python.exe tools/victim_chat/app.py   (or double-click Victim Chat.cmd)
 """
 
 from __future__ import annotations
@@ -37,11 +37,12 @@ from tkinter import filedialog, font as tkfont, messagebox, ttk
 
 from PIL import Image, ImageGrab, ImageTk
 
-ROOT = Path(__file__).resolve().parent
+APP_DIR = Path(__file__).resolve().parent
+ROOT = APP_DIR.parents[1]          # repo root: harness/ + systems/ import from here
 sys.path.insert(0, str(ROOT))
 CHATS_DIR = ROOT / "chats"
 IMAGES_DIR = CHATS_DIR / "images"
-ICON = ROOT / "assets" / "victim_chat.ico"
+ICON = APP_DIR / "victim_chat.ico"
 LOG_DIR = ROOT / "logs"
 
 # --------------------------------------------------------------------------
@@ -74,7 +75,7 @@ def _load_victim_presets() -> None:
     """Offer the study's real victim prompts, so chatting and measuring share
     wording. Import is soft: the window must still open if the harness moves."""
     try:
-        from systems.system1_direct.image_description import DEFENSES
+        from systems.system1_direct.victim.image_description import DEFENSES
     except Exception:                                     # noqa: BLE001
         return
     labels = {"off": "Victim app - defense off",

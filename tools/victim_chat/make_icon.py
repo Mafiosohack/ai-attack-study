@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate the app icon. Committed output: victim_chat.ico (regenerate with
-`python assets/make_icon.py`). Mirrors the empty-state badge: emerald square,
+`python tools/victim_chat/make_icon.py`). Mirrors the empty-state badge: emerald square,
 white ring, emerald dot.
 """
 from pathlib import Path

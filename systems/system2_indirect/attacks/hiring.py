@@ -22,9 +22,9 @@ import textwrap
 from PIL import Image, ImageDraw
 
 from harness.runner import Attack
-from attacks.typographic import DEFAULT_CANARY, make_canary_oracle, _load_font
-from systems.system2_indirect.retrieval import CorpusItem
-from systems.system2_indirect.schema import MIN_YEARS, read_fields_line
+from systems.system1_direct.attacks.typographic import DEFAULT_CANARY, make_canary_oracle, _load_font
+from systems.system2_indirect.victim.retrieval import CorpusItem
+from systems.system2_indirect.victim.schema import MIN_YEARS, read_fields_line
 
 _DECISION_RE = re.compile(r"decision\W*(shortlist|reject)", re.IGNORECASE)
 

@@ -8,7 +8,7 @@ as a DISTRIBUTION and shows whether the stronger 'spotlight' defense dents an
 attack that sits at 100% under greedy decoding.
 
 Run from the repo root:
-    .venv/Scripts/python.exe -m systems.system1_direct.run_reliability
+    .venv/Scripts/python.exe -m systems.system1_direct.experiments.run_reliability
 """
 
 from __future__ import annotations
@@ -17,11 +17,14 @@ import logging
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from harness import VictimModel, AttackRunner, RELIABILITY
-from systems.system1_direct.image_description import ImageDescriptionPipeline
-from attacks.typographic import typographic_canary_attack
+from systems.system1_direct.victim.image_description import ImageDescriptionPipeline
+from systems.system1_direct.attacks.typographic import typographic_canary_attack
+
+# Every run of this system lands in its own results/ folder, wherever it is run from.
+RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s")
@@ -34,7 +37,7 @@ DEFENSES = ("off", "naive", "spotlight")
 def main() -> None:
     model = VictimModel()
     attack = typographic_canary_attack()
-    runner = AttackRunner(results_dir="results")
+    runner = AttackRunner(results_dir=RESULTS_DIR)
 
     results = {}
     for defense in DEFENSES:

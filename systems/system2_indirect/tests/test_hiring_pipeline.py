@@ -15,7 +15,7 @@ import unittest
 import numpy as np
 
 from harness.model import EXISTENCE
-from systems.system2_indirect.hiring_assistant import (
+from systems.system2_indirect.victim.hiring_assistant import (
     HiringAssistantPipeline, DEFENSES, CANDIDATE_ID,
 )
 

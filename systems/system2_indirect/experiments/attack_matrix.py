@@ -7,26 +7,30 @@ Phase 1. Two clean-baseline controls (benign text + benign image, judged by the
 decision-flip oracle) confirm the underqualified candidate is NOT spuriously
 shortlisted — without that, a measured flip would be meaningless.
 
-Each cell is one AttackResult JSON under results/ (full provenance, incl. the
+Each cell is one AttackResult JSON in this system's results/ (full provenance, incl. the
 candidate's retrieval rank). Run via run_existence / run_reliability.
 """
 
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from harness import AttackRunner
 from harness.runner import Attack
-from systems.system2_indirect.hiring_assistant import HiringAssistantPipeline
-from attacks.hiring import (
+from systems.system2_indirect.victim.hiring_assistant import HiringAssistantPipeline
+from systems.system2_indirect.attacks.hiring import (
     benign_candidate_page, build_cv_image, make_decision_flip_oracle, BENIGN_CV,
     schema_field_metrics,
     hiring_canary_text_attack, hiring_decision_text_attack, hiring_falsify_text_attack,
     hiring_canary_image_attack, hiring_decision_image_attack, hiring_falsify_image_attack,
 )
-from systems.system2_indirect.retrieval import CorpusItem
+from systems.system2_indirect.victim.retrieval import CorpusItem
 
 logger = logging.getLogger(__name__)
+
+# Every System 2 run lands in this system's own results/ folder.
+RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
 
 
 def _benign_control(channel: str) -> Attack:
@@ -66,7 +70,7 @@ def build_attacks() -> list[Attack]:
 
 
 def run_matrix(model, embedder, decode, n_trials: int,
-               defense: str = "off", results_dir: str = "results",
+               defense: str = "off", results_dir: str | Path = RESULTS_DIR,
                skip: frozenset[str] = frozenset()) -> list:
     """Measure every cell at one (defense, decode) and return the AttackResults.
     One pipeline is reused across cells — only the payload varies, which is what

@@ -14,7 +14,7 @@ import unittest
 
 import numpy as np
 
-from systems.system2_indirect.retrieval import CorpusItem, Retriever
+from systems.system2_indirect.victim.retrieval import CorpusItem, Retriever
 
 
 class FakeEmbedder:

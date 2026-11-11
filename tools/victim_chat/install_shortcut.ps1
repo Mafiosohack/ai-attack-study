@@ -7,10 +7,10 @@
 
 $ErrorActionPreference = 'Stop'
 
-$root    = Split-Path -Parent $PSScriptRoot
+$root    = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # repo root
 $pythonw = Join-Path $root '.venv\Scripts\pythonw.exe'
-$script  = Join-Path $root 'app.py'
-$icon    = Join-Path $root 'assets\victim_chat.ico'
+$script  = Join-Path $PSScriptRoot 'app.py'
+$icon    = Join-Path $PSScriptRoot 'victim_chat.ico'
 
 foreach ($required in @($pythonw, $script)) {
     if (-not (Test-Path $required)) {

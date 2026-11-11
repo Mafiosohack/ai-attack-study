@@ -7,7 +7,7 @@ works and is stable before committing to long reliability runs. This is the run
 that reaches the §7 checkpoint: does the VictimPipeline abstraction feel natural?
 
 Run from the repo root:
-    .venv/Scripts/python.exe -m systems.system1_direct.run_existence
+    .venv/Scripts/python.exe -m systems.system1_direct.experiments.run_existence
 """
 
 from __future__ import annotations
@@ -18,11 +18,14 @@ from pathlib import Path
 
 # Allow running as a plain script (python systems/system1_direct/run_existence.py)
 # by putting the repo root on sys.path, not just `python -m`.
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from harness import VictimModel, AttackRunner, EXISTENCE
-from systems.system1_direct.image_description import ImageDescriptionPipeline
-from attacks.typographic import typographic_canary_attack
+from systems.system1_direct.victim.image_description import ImageDescriptionPipeline
+from systems.system1_direct.attacks.typographic import typographic_canary_attack
+
+# Every run of this system lands in its own results/ folder, wherever it is run from.
+RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s")
@@ -34,7 +37,7 @@ N_EXISTENCE = 5  # small: confirm the vector is real and stable, not measure ASR
 def main() -> None:
     model = VictimModel()                 # loads the fixed 4-bit victim once
     attack = typographic_canary_attack()  # payload + canary oracle
-    runner = AttackRunner(results_dir="results")
+    runner = AttackRunner(results_dir=RESULTS_DIR)
 
     results = {}
     for defense in ("off", "naive", "spotlight"):

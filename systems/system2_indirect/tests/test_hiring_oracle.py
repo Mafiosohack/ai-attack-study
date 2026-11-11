@@ -15,7 +15,7 @@ import unittest
 
 from PIL import Image
 
-from attacks.hiring import (
+from systems.system2_indirect.attacks.hiring import (
     parse_decision, make_decision_flip_oracle,
     build_cv_text, DECISION_INJECTION, benign_candidate_page,
     hiring_decision_text_attack,
@@ -86,8 +86,8 @@ class CvPayloadTest(unittest.TestCase):
         self.assertFalse(attack.succeeded("DECISION: REJECT"))
 
     def test_image_attack_payload_is_corpusitem_indexed_by_visible_text(self) -> None:
-        from attacks.hiring import hiring_decision_image_attack, BENIGN_CV
-        from systems.system2_indirect.retrieval import CorpusItem
+        from systems.system2_indirect.attacks.hiring import hiring_decision_image_attack, BENIGN_CV
+        from systems.system2_indirect.victim.retrieval import CorpusItem
         attack = hiring_decision_image_attack(style="faint")
         self.assertIsInstance(attack.payload, CorpusItem)
         self.assertEqual(attack.payload.modality, "image")

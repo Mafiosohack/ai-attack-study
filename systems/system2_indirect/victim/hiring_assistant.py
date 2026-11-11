@@ -25,8 +25,8 @@ import logging
 from PIL import Image
 
 from harness.model import DecodeConfig, EXISTENCE, build_context_messages
-from systems.system2_indirect.retrieval import CorpusItem, Retriever
-from systems.system2_indirect.schema import (
+from systems.system2_indirect.victim.retrieval import CorpusItem, Retriever
+from systems.system2_indirect.victim.schema import (
     SCHEMA_INSTRUCTION_TEMPLATE, parse_schema, render_output,
 )
 
