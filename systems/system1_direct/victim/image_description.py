@@ -15,7 +15,13 @@ from __future__ import annotations
 
 from PIL import Image
 
-from harness.model import VictimModel, DecodeConfig, EXISTENCE
+from harness.model import (
+    VictimModel, DecodeConfig, EXISTENCE, build_single_image_messages,
+)
+from systems.system1_direct.victim.input_defenses import (
+    BLOCK_MESSAGE, READER_SYSTEM_PROMPT, READER_USER_TEXT, describe_transform,
+    detect_instructions, reencode,
+)
 
 # The benign task. Fixed across all trials so the ONLY thing that varies within a
 # measurement is the attack image — that is what keeps an ASR attributable.
@@ -77,6 +83,23 @@ DEFENSES: dict[str, str] = {
     "spotlight": SYSTEM_PROMPT_SPOTLIGHT,
 }
 
+# --- Phase-3 input defenses (see input_defenses.py) --------------------------
+# name -> (system-prompt variant, re-encode the image?, OCR-then-filter?)
+# "transform" and "ocr_filter" each change ONE thing vs "off" so their effect is
+# attributable; "hardened" stacks everything as the deployable rebuild.
+INPUT_DEFENSES: dict[str, tuple[str, bool, bool]] = {
+    "transform": ("off", True, False),
+    "ocr_filter": ("off", False, True),
+    "hardened": ("spotlight", True, True),
+}
+
+ALL_DEFENSES: tuple[str, ...] = (*DEFENSES, *INPUT_DEFENSES)
+
+# The reader pass is the DEFENDER's call, so it is always greedy: deterministic
+# per image, which also makes caching its transcript exact. 256 tokens so a
+# long injection can't hide past a truncated transcript.
+READER_DECODE = DecodeConfig(do_sample=False, max_new_tokens=256)
+
 
 class ImageDescriptionPipeline:
     """VictimPipeline: describe an uploaded image. Payload is a PIL.Image.
@@ -89,26 +112,69 @@ class ImageDescriptionPipeline:
 
     def __init__(self, model: VictimModel, defense: str = "off",
                  decode: DecodeConfig = EXISTENCE) -> None:
-        if defense not in DEFENSES:
+        if defense not in ALL_DEFENSES:
             raise ValueError(
-                f"unknown defense {defense!r}; choose from {sorted(DEFENSES)}")
+                f"unknown defense {defense!r}; choose from {sorted(ALL_DEFENSES)}")
         self.model = model
         self.defense = defense
         self.decode = decode
-        self.system_prompt = DEFENSES[defense]
+        prompt_variant, self.transform, self.ocr_filter = INPUT_DEFENSES.get(
+            defense, (defense, False, False))
+        self.prompt_variant = prompt_variant
+        self.system_prompt = DEFENSES[prompt_variant]
+        self._reader_cache: dict[bytes, str] = {}
+        # Reader outcome for the most recent image (an Attack has one fixed
+        # payload, so after a measurement this is THAT image's reader result).
+        self.last_reader: dict | None = None
+
+    def _read_text(self, img: Image.Image) -> str:
+        key = img.tobytes()
+        if key not in self._reader_cache:
+            self._reader_cache[key] = self.model.generate(
+                system_prompt=READER_SYSTEM_PROMPT, image=img,
+                user_text=READER_USER_TEXT, decode=READER_DECODE)
+        return self._reader_cache[key]
 
     def run(self, attack_payload: object) -> str:
         """Feed the crafted image through the describe-task and return the reply."""
+        img = self._prepare(attack_payload)
+        if self._blocked(img):
+            return BLOCK_MESSAGE
+        return self.model.generate(
+            system_prompt=self.system_prompt,
+            image=img,
+            user_text=BENIGN_USER_TEXT,
+            decode=self.decode,
+        )
+
+    def run_batch(self, attack_payload: object, n: int) -> list[str]:
+        """n independent sampled replies in one GPU call (reliability mode).
+        Defenses run exactly as in run(): transform first, then the cached
+        greedy reader; a blocked image returns the block message for all n."""
+        img = self._prepare(attack_payload)
+        if self._blocked(img):
+            return [BLOCK_MESSAGE] * n
+        return self.model.generate_messages_batch(
+            build_single_image_messages(self.system_prompt, img,
+                                        BENIGN_USER_TEXT),
+            self.decode, n)
+
+    def _prepare(self, attack_payload: object) -> Image.Image:
         if not isinstance(attack_payload, Image.Image):
             raise TypeError(
                 f"ImageDescriptionPipeline expects a PIL.Image payload, "
                 f"got {type(attack_payload).__name__}")
-        return self.model.generate(
-            system_prompt=self.system_prompt,
-            image=attack_payload,
-            user_text=BENIGN_USER_TEXT,
-            decode=self.decode,
-        )
+        return reencode(attack_payload) if self.transform else attack_payload
+
+    def _blocked(self, img: Image.Image) -> bool:
+        """Run the ocr_filter reader + detector (if enabled); True = block."""
+        if self.ocr_filter:
+            transcript = self._read_text(img)
+            hits = detect_instructions(transcript)
+            self.last_reader = {"transcript": transcript, "patterns_hit": hits,
+                                "blocked": bool(hits)}
+            return bool(hits)
+        return False
 
     def describe_config(self) -> dict:
         """Provenance: model config + the one-variable defense/decode state."""
@@ -116,5 +182,10 @@ class ImageDescriptionPipeline:
             "system": "system1_direct",
             "app": "image_description",
             "defense": self.defense,
+            "system_prompt_variant": self.prompt_variant,
+            "input_transform": describe_transform() if self.transform else None,
+            "ocr_filter": ({"reader_decode": READER_DECODE.describe(),
+                            "last_reader": self.last_reader}
+                           if self.ocr_filter else None),
             **self.decode.describe(),
         }

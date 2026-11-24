@@ -51,26 +51,60 @@ class AttackRunner:
         self.results_dir = Path(results_dir)
 
     def measure(self, pipeline: VictimPipeline, attack: Attack,
-                n_trials: int) -> AttackResult:
+                n_trials: int, batch_size: int = 1) -> AttackResult:
+        """Fire `attack` n_trials times and record the result.
+
+        batch_size > 1 runs trials in parallel chunks through the pipeline's
+        optional `run_batch(payload, n)` (sampled decoding only). Each trial is
+        still an independent sample; only the execution path differs, and that
+        path is recorded in victim_config["trial_execution"] so batched and
+        sequential results are never silently mixed.
+        """
         if n_trials < 1:
             raise ValueError("n_trials must be >= 1")
+        if batch_size < 1:
+            raise ValueError("batch_size must be >= 1")
+        if batch_size > 1 and not hasattr(pipeline, "run_batch"):
+            raise TypeError(f"{type(pipeline).__name__} has no run_batch(); "
+                            "use batch_size=1")
 
-        successes = 0
         outputs: list[str] = []
-        for i in range(n_trials):
-            try:
-                output = pipeline.run(attack.payload)
-            except Exception:
-                # A crashed trial is a failed trial, not a crashed experiment.
-                # Log it and keep going so one bad run doesn't void the ASR.
-                logger.exception("Trial %d/%d raised; counting as failure.",
-                                 i + 1, n_trials)
-                output = ""
-            outputs.append(output)
-            if attack.succeeded(output):
-                successes += 1
-            logger.info("  trial %d/%d: %s", i + 1, n_trials,
-                        "HIT" if attack.succeeded(output) else "miss")
+        if batch_size == 1:
+            for i in range(n_trials):
+                try:
+                    output = pipeline.run(attack.payload)
+                except Exception:
+                    # A crashed trial is a failed trial, not a crashed
+                    # experiment. Log it and keep going so one bad run doesn't
+                    # void the ASR.
+                    logger.exception("Trial %d/%d raised; counting as failure.",
+                                     i + 1, n_trials)
+                    output = ""
+                outputs.append(output)
+                logger.info("  trial %d/%d: %s", i + 1, n_trials,
+                            "HIT" if attack.succeeded(output) else "miss")
+            execution = {"mode": "sequential"}
+        else:
+            while len(outputs) < n_trials:
+                k = min(batch_size, n_trials - len(outputs))
+                try:
+                    chunk = list(pipeline.run_batch(attack.payload, k))
+                    if len(chunk) != k:
+                        raise RuntimeError(f"run_batch returned {len(chunk)}, "
+                                           f"expected {k}")
+                except Exception:
+                    # Same rule as sequential: crashed trials count as failures.
+                    logger.exception("Batch of %d raised; counting %d failures.",
+                                     k, k)
+                    chunk = [""] * k
+                outputs.extend(chunk)
+                hits = sum(attack.succeeded(o) for o in chunk)
+                logger.info("  trials %d-%d/%d: %d HIT, %d miss",
+                            len(outputs) - k + 1, len(outputs), n_trials,
+                            hits, k - hits)
+            execution = {"mode": "batched", "batch_size": batch_size,
+                         "method": "num_return_sequences"}
+        successes = sum(1 for o in outputs if attack.succeeded(o))
 
         result = AttackResult(
             attack_name=attack.name,
@@ -78,7 +112,8 @@ class AttackRunner:
             n_trials=n_trials,
             successes=successes,
             outputs=outputs,
-            victim_config=pipeline.describe_config(),
+            victim_config=pipeline.describe_config() | {
+                "trial_execution": execution},
             metrics=attack.metrics(outputs) if attack.metrics else {},
         )
         saved = result.save(self.results_dir)

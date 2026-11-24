@@ -24,6 +24,10 @@ class VictimPipeline(Protocol):
     def run(self, attack_payload: object) -> str:
         ...
 
+    # Optional: `run_batch(attack_payload, n) -> list[str]` returning n
+    # independent sampled outputs. AttackRunner uses it only when asked for
+    # batch_size > 1; pipelines without it are measured sequentially.
+
     def describe_config(self) -> dict:
         """Snapshot of the FIXED victim config for this measurement: model id +
         revision, quantization, decode settings, and which defenses are active.

@@ -162,6 +162,27 @@ class VictimModel:
         the message contains, so a multi-image RAG context works with no special
         casing.
         """
+        return self._generate(messages, decode, n=1)[0]
+
+    def generate_messages_batch(self, messages: list[dict], decode: DecodeConfig,
+                                n: int) -> list[str]:
+        """n independent SAMPLED replies to one message, from a single prefill.
+
+        Uses num_return_sequences: the prompt (and image) is identical for every
+        sequence, so there is no padding and each reply is sampled independently
+        -- statistically the same as n sequential calls, run in parallel on the
+        GPU. Greedy decoding is refused: existence mode is batch-1 by the
+        brief's methodology, and n greedy copies would be identical anyway.
+        """
+        if not decode.do_sample:
+            raise ValueError("batched generation is for sampled (reliability) "
+                             "decoding only; existence mode stays batch-1")
+        if n < 1:
+            raise ValueError("n must be >= 1")
+        return self._generate(messages, decode, n=n)
+
+    def _generate(self, messages: list[dict], decode: DecodeConfig,
+                  n: int) -> list[str]:
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = process_vision_info(messages)
@@ -174,15 +195,18 @@ class VictimModel:
                       "do_sample": decode.do_sample}
         if decode.do_sample:
             gen_kwargs |= {"temperature": decode.temperature, "top_p": decode.top_p}
+        if n > 1:
+            gen_kwargs["num_return_sequences"] = n
 
         with torch.inference_mode():
             generated = self.model.generate(**inputs, **gen_kwargs)
 
-        trimmed = [out[len(inp):] for inp, out in zip(inputs.input_ids, generated)]
-        answer = self.processor.batch_decode(
-            trimmed, skip_special_tokens=True,
-            clean_up_tokenization_spaces=False)[0]
-        return answer.strip()
+        # Every returned sequence shares the one prompt, so trim by its length.
+        prompt_len = inputs.input_ids.shape[1]
+        answers = self.processor.batch_decode(
+            generated[:, prompt_len:], skip_special_tokens=True,
+            clean_up_tokenization_spaces=False)
+        return [a.strip() for a in answers]
 
     def describe_config(self) -> dict:
         """Provenance snapshot of the fixed model config, recorded with results."""
