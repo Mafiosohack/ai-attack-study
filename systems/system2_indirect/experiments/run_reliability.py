@@ -34,11 +34,14 @@ def main() -> None:
                          "contrasts; N=50 tightens the 0%% upper bound)")
     ap.add_argument("--skip", nargs="*", default=[],
                     help="cell names already measured at this defense")
+    ap.add_argument("--only", nargs="*", default=[],
+                    help="measure only these cells (default: all)")
     args = ap.parse_args()
     model = VictimModel()
     embedder = ClipEmbedder()
     results = run_matrix(model, embedder, RELIABILITY, n_trials=args.n,
-                         defense=args.defense, skip=frozenset(args.skip))
+                         defense=args.defense, skip=frozenset(args.skip),
+                         only=frozenset(args.only))
     print_summary(results, f"System 2 hiring assistant — reliability "
                            f"(N={args.n}, defense={args.defense})")
 

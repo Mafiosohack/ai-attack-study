@@ -16,15 +16,17 @@ Success Rate (ASR) over N trials**, with full provenance saved for every run.
 
 | System | Trust boundary | Victim app | Status |
 |--------|----------------|------------|--------|
-| [**System 1 — direct**](systems/system1_direct/) | The user uploads the malicious image themselves | Image-description assistant | ✅ measured |
-| [**System 2 — indirect**](systems/system2_indirect/) | The malicious content arrives through **retrieval**; the user never sees it | Hiring assistant that fetches a candidate's own page | ✅ measured, one defense layer open |
-| System 3 — agentic | Injection steers an assistant that can take actions | — | ⏳ not started |
+| [**System 1 — direct**](systems/system1_direct/) | The user uploads the malicious image themselves | Image-description assistant | ✅ measured · 🟡 adversarial + input defenses built, awaiting GPU run |
+| [**System 2 — indirect**](systems/system2_indirect/) | The malicious content arrives through **retrieval**; the user never sees it | Hiring assistant that fetches a candidate's own page | ✅ measured · 🟡 `fact_check` defense + utility controls built, awaiting GPU run |
+| System 3 — agentic | Injection steers an assistant that can take actions | Inbox assistant with tools + memory (proposed) | 📝 [planned on paper](docs/system3_plan.md), decisions pending |
 
 Headline results (victim: Qwen2.5-VL-3B, 4-bit; sampled at temperature 0.7):
 
 - **System 1:** a readable-text image injection succeeds **50/50** with no
   defense, **50/50** with a naive prompt defense and **49/50** with a strong
-  spotlighting prompt. Prompt-only defenses don't help.
+  spotlighting prompt. Prompt-only defenses don't help. The model still obeys
+  40 px text at WCAG contrast 1.03 (20/20), then stops completely two grey
+  levels lighter (0/20).
 - **System 2, model decides:** the same kind of injection, retrieved into a
   hiring decision, flips the verdict far less often: **30%** (text) and **20%**
   (plain image) for an "HR pre-verified, shortlist" override, against a clean
@@ -57,7 +59,7 @@ systems/
     results/                  one JSON per run — the provenance record
   system2_indirect/
     README.md
-    victim/                   hiring assistant, retriever, schema defense
+    victim/                   hiring assistant, retriever, schema + fact_check defenses
     attacks/
     experiments/              attack matrix + run scripts
     results/
@@ -70,6 +72,7 @@ tools/                        NOT measurement protocol
 docs/
   claude_code_handoff.md      full build brief and methodology
   harness_core.py             the interface contract the harness implements
+  system3_plan.md             System 3 design proposal + decisions needed
 Victim Chat.cmd               double-click launcher for the desktop chat
 Install Desktop Shortcut.cmd  puts a Victim Chat shortcut on the Desktop
 ```

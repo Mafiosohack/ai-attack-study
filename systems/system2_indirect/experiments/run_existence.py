@@ -28,11 +28,13 @@ N_EXISTENCE = 5
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--defense", default="off", choices=sorted(DEFENSES))
+    ap.add_argument("--only", nargs="*", default=[],
+                    help="measure only these cells (default: all)")
     args = ap.parse_args()
     model = VictimModel()
     embedder = ClipEmbedder()
     results = run_matrix(model, embedder, EXISTENCE, n_trials=N_EXISTENCE,
-                         defense=args.defense)
+                         defense=args.defense, only=frozenset(args.only))
     print_summary(results, f"System 2 hiring assistant — existence "
                            f"(N={N_EXISTENCE}, defense={args.defense})")
 
